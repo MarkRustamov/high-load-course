@@ -34,11 +34,21 @@ class SlidingWindowRateLimiter(
         }
     }
 
-    fun tickBlocking() {
+    override fun tickBlocking() {
         while (!tick()) {
             Thread.sleep(10)
         }
     }
+
+//    Possible?
+//    fun tickBlocking() {
+//        while (true) {
+//            if (tick()) {
+//                break
+//            }
+//            Thread.sleep(0, 1)
+//        }
+//    }
 
     data class Measure(
         val value: Long,
