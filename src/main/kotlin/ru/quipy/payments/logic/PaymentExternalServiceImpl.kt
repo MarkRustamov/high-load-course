@@ -47,9 +47,7 @@ class PaymentExternalSystemAdapterImpl(
     override fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
 
         // Ограничиваем количество запросов к сервису
-        if (!rateLimiter.tick()) {
-            rateLimiter.tickBlocking()
-        }
+        rateLimiter.tickBlocking()
 
         logger.warn("[$accountName] Submitting payment request for payment $paymentId")
 
