@@ -6,10 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import org.slf4j.LoggerFactory
-import ru.quipy.common.utils.FixedWindowRateLimiter
-import ru.quipy.common.utils.LeakingBucketRateLimiter
-import ru.quipy.common.utils.SlidingWindowRateLimiter
-import ru.quipy.common.utils.TokenBucketRateLimiter
+import ru.quipy.common.utils.*
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
 import java.net.SocketTimeoutException
@@ -41,6 +38,7 @@ class PaymentExternalSystemAdapterImpl(
 //    private val rateLimiter = SlidingWindowRateLimiter(rateLimitPerSec.toLong(), Duration.ofSeconds(1))
 //    private val rateLimiter = TokenBucketRateLimiter(rateLimitPerSec, rateLimitPerSec + 2, 1, TimeUnit.SECONDS)
 //    private val rateLimiter = LeakingBucketRateLimiter(rateLimitPerSec.toLong(), Duration.ofSeconds(1), rateLimitPerSec)
+    private val window = NonBlockingOngoingWindow(parallelRequests)
 
     private val client = OkHttpClient.Builder().build()
 
@@ -48,6 +46,9 @@ class PaymentExternalSystemAdapterImpl(
 
         // Ограничиваем количество запросов к сервису
         rateLimiter.tickBlocking()
+
+        // Ограничиваем количество одновременных запросов
+        window.putIntoWindow()
 
         logger.warn("[$accountName] Submitting payment request for payment $paymentId")
 
@@ -99,6 +100,9 @@ class PaymentExternalSystemAdapterImpl(
                     }
                 }
             }
+        }
+        finally {
+            window.releaseWindow()
         }
     }
 
