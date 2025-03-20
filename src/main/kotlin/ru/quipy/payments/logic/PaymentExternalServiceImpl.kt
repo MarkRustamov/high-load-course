@@ -33,6 +33,7 @@ class PaymentExternalSystemAdapterImpl(
     private val requestAverageProcessingTime = properties.averageProcessingTime
     private val rateLimitPerSec = properties.rateLimitPerSec
     private val parallelRequests = properties.parallelRequests
+    private val timeout = requestAverageProcessingTime.toMillis() * 2
 
 //    private val rateLimiter = FixedWindowRateLimiter(rateLimitPerSec, 1, TimeUnit.SECONDS)
     private val rateLimiter = SlidingWindowRateLimiter(rateLimitPerSec.toLong(), Duration.ofSeconds(1))
@@ -45,7 +46,7 @@ class PaymentExternalSystemAdapterImpl(
 
     override fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
         CoroutineScope(Dispatchers.Default).launch {
-            withTimeout(deadline - System.currentTimeMillis()) {
+            withTimeout(timeout) {
                 // Ограничиваем количество запросов к сервису
                 while (!(rateLimiter.tick() && window.tryAcquire())) {
                     delay(10)
@@ -63,7 +64,7 @@ class PaymentExternalSystemAdapterImpl(
                 }
 
                 val request = Request.Builder().run {
-                    url("http://localhost:1234/external/process?serviceName=${serviceName}&accountName=${accountName}&transactionId=$transactionId&paymentId=$paymentId&amount=$amount")
+                    url("http://localhost:1234/external/process?serviceName=${serviceName}&accountName=${accountName}&transactionId=$transactionId&paymentId=$paymentId&amount=$amount&timeout=${Duration.ofMillis(timeout)}")
                     post(emptyBody)
                 }.build()
 
